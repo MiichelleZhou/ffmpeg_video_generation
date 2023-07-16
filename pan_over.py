@@ -138,7 +138,41 @@ if __name__ == '__main__':
         print("Success! Resize output image file: {}".format(resized_image_file))
     else:
         print("Failure! Resize input image file: {}".format(in_file))
+        
     # step2: move from point A to point B
+     #### Begin Face Detection Here ####
+
+    # # Load the cascade
+    # face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+
+    # # Load the image
+    # img = cv2.imread('image.jpeg')
+
+    # # Convert color image to grayscale for Viola-Jones
+    # grayscale_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    # # Perform face detection
+    # faces = face_cascade.detectMultiScale(grayscale_img, 1.1, 4)
+
+    # # Create a list to store the coordinates
+    # face_locations = []
+
+    # # Draw rectangle around the faces and save the coordinates
+    # for (x, y, w, h) in faces:
+    #     cv2.rectangle(img, (x, y), (x+w, y+h), (255, 0, 0), 2)
+    #     face_locations.append((x, y, w, h))  # Adding the face location as a tuple to the list
+
+    # # Display the output
+    # cv2.imshow('img', img)
+    # cv2.waitKey(30)
+
+    # point_a = face_locations[0]
+    # point_b = face_locations[1]
+    
+
+    ### End Face Detection Here
+
+    
     out_file2 = "./out/{}_move1.mp4".format(in_filename_base)
     point_a = (1489, 278)
     point_b = (467, 371)
