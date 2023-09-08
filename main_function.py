@@ -1,10 +1,5 @@
-'''
-Python + ffmpeg制作视频
-case1: zoom in (x，y)
-case2: move from point A to point B
-'''
-
 import os
+import argparse
 from PIL import Image
 
 
@@ -19,29 +14,41 @@ def cmd_execute(cmd_str=""):
     return True
 
 
-# make zoompan filter
-# input: image size (width, height), (x,y), z, time
-# default: output size = input size, duration = 25fps * time, scale=-2:10*ih
-def vf_zoom(in_file="", out_file="", image_size=(0, 0), z_point=(0, 0), z_effect='', time=0):
-    vf_str = "scale=-2:10*ih,zoompan=x='(iw-iw/zoom)*({0}/{2})':y='(ih-ih/zoom)*({1}/{3})':z='{4}':d=25*{5}:s={2}x{3}".format(
+# zoom into a certain point from the whole frame
+def vf_zoom(in_file="", out_file="", image_size=(0, 0), z_point=(0, 0), z_end=1, time=1):
+    # Calculate total frames needed
+    frame_count = 25 * time  # Assuming 25fps
+    
+    vf_str = "scale=-2:{2},zoompan=z='zoom+({4}-1)/{5}':x='if(lte(zoom,1.0),0,(iw-iw/zoom)*({0}/{2}))':y='if(lte(zoom,1.0),0,(ih-ih/zoom)*({1}/{3}))':d={5}:s={2}x{3}:fps=25".format(
         z_point[0],
         z_point[1],
         image_size[0],
         image_size[1],
-        z_effect,
-        time
+        z_end,
+        frame_count
     )
     return "ffmpeg -y -i {0} -vf \"{2}\" -pix_fmt yuv420p -c:v libx264 {1}".format(in_file, out_file, vf_str)
 
 
+# zoom out to the whole frame from a certain point 
+def vf_zoom_out(in_file="", out_file="", image_size=(0, 0), z_point=(0, 0), z_start=2.8, time=1):
+    # Calculate total frames needed
+    frame_count = 25 * time  # Assuming 25fps
 
-# todo
-def vf_crop_pad(image_size=(0, 0), z_point=(0, 0), z_effect='', time=0):
-    # ffplay -i zoomtest03-liuyifei.mp4 -vf "crop=iw/2:ih:iw/2*t/5:0,pad=w=1280:h=800:x='(ow-iw)/2':y='(oh-ih)/2"
-    return None
+    vf_str = ("scale=-2:{2},zoompan=z='if(gte(zoom,{4}),max(1,zoom-({4}-1)/{5}),1)':"
+              "x='(iw-iw/zoom)*({0}/{2})':y='(ih-ih/zoom)*({1}/{3})':"
+              "d={5}:s={2}x{3}:fps=25").format(
+        z_point[0],
+        z_point[1],
+        image_size[0],
+        image_size[1],
+        z_start,
+        frame_count
+    )
+    return "ffmpeg -y -i {0} -vf \"{2}\" -pix_fmt yuv420p -c:v libx264 {1}".format(in_file, out_file, vf_str)
 
 
-# return true/false
+# resize the image; return true/false
 def resize_image(in_img_path, out_img_path, out_size=(0, 0)):
     try:
         in_image = Image.open(in_img_path)
@@ -120,66 +127,52 @@ def vf_concat_videos(in_files=[], out_file=""):
     return "ffmpeg -f concat -safe 0 -y -i {} -c copy {}".format(list_file, out_file)
 
 
-if __name__ == '__main__':
-    # Example command: ffplay -i liuyifei_3.jpg -vf "scale=-2:10*ih,zoompan=x='(iw-iw/zoom)*(475/640)':y='(ih-ih/zoom)*(125/359)':z='zoom+0.010':d=25*4:s=640x359"
-    out_videos = []
-    os.chdir("/Users/michellezhou/Desktop/VideoProducer-master")
-    # step0: get input image
-    in_filename = "windows_people.jpg"
-    in_filename_base = os.path.splitext(in_filename)[0]
-    in_file = "./image/{}".format(in_filename)
-    resized_image_file = "./out/{}_resize.jpg".format(in_filename_base)
 
+def main_function():
+    parser = argparse.ArgumentParser(description="Process video and image files.")
+    parser.add_argument('in_filename', type=str, help='Input filename')
+    parser.add_argument('--point_a', type=lambda s: tuple(map(int, s.split(','))),  help='Point A in format x,y')
+    parser.add_argument('--point_b', type=lambda s: tuple(map(int, s.split(','))),  help='Point B in format x,y')
+    parser.add_argument('--point_c', type=lambda s: tuple(map(int, s.split(','))),  help='Point C in format x,y')
+    args = parser.parse_args()
+    out_videos = []    
+    
+    # step0: get input image
+    in_filename_base = os.path.splitext(args.in_filename)[0]
+    in_file = "./image/{}".format(args.in_filename)
+    resized_image_file = "./out/{}_resize.jpg".format(in_filename_base)
+    
     # step1: resize image
-    # out_size = (640, 360)
     out_size = (1920, 1280)
     result = resize_image(in_file, resized_image_file, out_size)
     if result:
         print("Success! Resize output image file: {}".format(resized_image_file))
     else:
         print("Failure! Resize input image file: {}".format(in_file))
-        
-    # step2: move from point A to point B
-     #### Begin Face Detection Here ####
-
-    # # Load the cascade
-    # face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-
-    # # Load the image
-    # img = cv2.imread('image.jpeg')
-
-    # # Convert color image to grayscale for Viola-Jones
-    # grayscale_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-    # # Perform face detection
-    # faces = face_cascade.detectMultiScale(grayscale_img, 1.1, 4)
-
-    # # Create a list to store the coordinates
-    # face_locations = []
-
-    # # Draw rectangle around the faces and save the coordinates
-    # for (x, y, w, h) in faces:
-    #     cv2.rectangle(img, (x, y), (x+w, y+h), (255, 0, 0), 2)
-    #     face_locations.append((x, y, w, h))  # Adding the face location as a tuple to the list
-
-    # # Display the output
-    # cv2.imshow('img', img)
-    # cv2.waitKey(30)
-
-    # point_a = face_locations[0]
-    # point_b = face_locations[1]
     
 
-    ### End Face Detection Here
+    # step2: move into the starting point 
+    z_end = 2.8
+    zoom_in_file = "./out/zoom_in.mp4"
+    time = 4
 
-    
+    ff_cmd_in = vf_zoom(
+        in_file=in_file,
+        out_file=zoom_in_file,
+        image_size=out_size,
+        z_point= args.point_a,
+        z_end=z_end,
+        time=time)
+    cmd_output_in = cmd_execute(ff_cmd_in)  
+
+
+    # step3: move from point A to point B
     out_file2 = "./out/{}_move1.mp4".format(in_filename_base)
-    point_a = (1489, 278)
-    point_b = (467, 371)
+    point_a = args.point_a
+    point_b = args.point_b
     z_multi = 2.8
     time = 4
     move_speed = 1
-
     ff_cmd = vf_zoom_move(in_file=resized_image_file
                           , out_file=out_file2
                           , out_size=out_size
@@ -192,7 +185,7 @@ if __name__ == '__main__':
     cmd_output = cmd_execute(ff_cmd)
     out_videos.append(out_file2)
 
-    # step3: extract the last frame and make a video for n seconds
+    # step4: extract the last frame and make a video for n seconds
     in_file3 = out_file2
     out_file3 = "./out/{}_extract_frame.jpg".format(in_filename_base)
     ff_cmd = vf_extract_frame(in_file=in_file3, out_file=out_file3, frame="last")
@@ -203,10 +196,14 @@ if __name__ == '__main__':
     ff_cmd = vf_stop_effect(in_file=out_file3, out_file=out_file4, time=time)
     cmd_output = cmd_execute(ff_cmd)
     out_videos.append(out_file4)
-    # step4: move from point B to point C
+   
+    # step5: move from point B to point C
     out_file5 = "./out/{}_move2.mp4".format(in_filename_base)
-    point_a = (467, 371)
-    point_b = (1274, 580)
+    # point_a = (467, 371)
+    # point_b = (1274, 580)
+    point_a = args.point_b
+    point_b = args.point_c
+
     z_multi = 2.8
     time = 4
     move_speed = 1
@@ -223,12 +220,34 @@ if __name__ == '__main__':
     cmd_output = cmd_execute(ff_cmd)
     out_videos.append(out_file5)
 
-    # step5: concat videos to final video
-    out_file_final = "./out/{}_michelle_final.mp4".format(in_filename_base)
+    # step6: zoom out from the last point to the whole frame
+    z_end = 2.8
+    zoom_in_file = "./out/zoom_in_temp.mp4"
+    time = 4
+    ff_cmd_in = vf_zoom(
+        in_file=in_file,
+        out_file=zoom_in_file,
+        image_size=out_size,
+        z_point= args.point_c,
+        z_end=z_end,
+        time=time)
+    cmd_output_in = cmd_execute(ff_cmd_in)
+    zoom_out_file = "./out/zoom_out.mp4"
+    reverse_cmd = reverse_video(in_file=zoom_in_file, out_file=zoom_out_file)
+    cmd_output_reverse = cmd_execute(reverse_cmd)
+
+    # step7: concat videos to final video
+    out_file_final = "./out/{}_final.mp4".format(in_filename_base)
     ff_cmd = vf_concat_videos(in_files=out_videos, out_file=out_file_final)
     print(ff_cmd)
     cmd_output = cmd_execute(ff_cmd)
     print(cmd_output)
-    # todo: remove middle video and image files
-    # todo: edge handle -- done
+    out_videos = [zoom_in_file, out_file_final, zoom_out_file]
+    ff_cmd = vf_concat_videos(in_files=out_videos, out_file='./final/out_file_final.mp4')
+    print(ff_cmd)
+    cmd_output = cmd_execute(ff_cmd)
     print("Done!")
+
+
+if __name__ == '__main__':
+   main_function()
