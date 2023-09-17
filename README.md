@@ -22,3 +22,5 @@ You can add the background audio as you want to a video. The function is in the 
 ### Concatenate Videos
 You can concatenate as much videos as you want by using the concatenate.py file under the script folder. Add all the file names into the out_videos list. 
 
+
+Copyright belongs to MusicBrain.
